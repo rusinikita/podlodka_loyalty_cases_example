@@ -1,0 +1,58 @@
+service: loyalty
+owner: team-loyalty
+tier: 1
+
+kafka:
+  cluster: main-events
+
+defaults:
+  auto_offset_reset: latest
+  session_timeout: 30s
+  max_poll_records: 200
+  commit:
+    mode: after_handle
+    interval: 1s
+  processing:
+    ordering: per_key          # key = user_id
+    processing_timeout: ${PLATFORM_DEFAULT}
+    shutdown_grace: 20s
+  retry:
+    max_attempts: 3
+    backoff: ${PLATFORM_DEFAULT}
+
+consumers:
+  - name: payment-succeeded
+    topic: payments.payment-succeeded
+    group: loyalty-payments
+    handler: payment_succeeded
+    partitions: 48
+    processing:
+      concurrency: 96
+    retry:
+      topic: loyalty.payment-succeeded.retry
+      dlq: loyalty.payment-succeeded.dlq
+    slo:
+      consumer_lag_seconds: 30
+
+  - name: user-registered
+    topic: users.user-registered
+    group: loyalty-referrals
+    handler: user_registered
+    partitions: 12
+    processing:
+      concurrency: 8
+    retry:
+      topic: loyalty.user-registered.retry
+      dlq: loyalty.user-registered.dlq
+    slo:
+      consumer_lag_seconds: 300
+
+deploy:
+  replicas: 8
+
+observability:
+  metrics_prefix: loyalty_consumer
+  tracing: true
+  alerts:
+    channel: "#loyalty-alerts"
+    dlq_non_empty: page

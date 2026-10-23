@@ -1,0 +1,39 @@
+asyncapi: 2.6.0
+info:
+  title: user.registered
+  version: 2.0.0
+  description: |
+    Published by the users service when a new account is created.
+    Delivery is at-least-once.
+  contact:
+    name: team-users
+    url: https://wiki.veter.tech/display/USR
+channels:
+  users.user-registered:
+    description: Partitioned by `user_id`.
+    subscribe:
+      operationId: onUserRegistered
+      message:
+        name: user.registered
+        contentType: application/json
+        payload:
+          $ref: '#/components/schemas/UserRegistered'
+components:
+  schemas:
+    UserRegistered:
+      type: object
+      required: [event_id, event_type, occurred_at, user_id, country]
+      properties:
+        event_id: { type: string, format: uuid }
+        event_type: { type: string, const: user.registered }
+        occurred_at: { type: string, format: date-time }
+        user_id: { type: integer, format: int64 }
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country of registration.
+        city_id: { type: integer }
+        invited_by:
+          type: integer
+          format: int64
+          nullable: true
+          description: User id of the inviter if the user registered via an invite link.

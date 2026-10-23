@@ -1,0 +1,10 @@
+workers:
+  - name: reward-payouts
+    schedule: every 5m
+    run_on_start: true
+    batch_size: 500
+
+  - name: discount-expiry
+    schedule: every 1h
+    run_on_start: false
+    batch_size: 1000

@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: Notifications API
+  version: 2.5.0
+  description: |
+    Push notifications to users of the app. Templates are managed by the CRM
+    team; clients pass the template id and its parameters.
+
+    The user's opt-out settings are applied by the service: a request for a
+    user who disabled pushes returns 202 and nothing is sent.
+
+    Internal network only, service token required.
+  contact:
+    name: team-crm
+    url: https://wiki.veter.tech/display/CRM
+servers:
+  - url: http://notifications.crm.svc.cluster.local
+    description: production
+  - url: http://notifications.crm.stage.svc.cluster.local
+    description: staging
+security:
+  - serviceToken: []
+paths:
+  /v1/push:
+    post:
+      operationId: sendPush
+      summary: Send a push to a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, template]
+              properties:
+                user_id: { type: integer, format: int64 }
+                template: { type: string, example: loyalty_next_order_discount }
+                params:
+                  type: object
+                  additionalProperties: { type: string }
+                  example: { percent: '20', expires_at: '2026-10-29' }
+                dedup_key:
+                  type: string
+                  description: Optional. Pushes with the same key within 24 hours are sent once.
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  push_id: { type: string, format: uuid }
+        '400':
+          description: Unknown template or missing params
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: Service temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  securitySchemes:
+    serviceToken:
+      type: apiKey
+      in: header
+      name: X-Service-Token
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }

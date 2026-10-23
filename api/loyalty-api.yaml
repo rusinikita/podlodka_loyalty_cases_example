@@ -1,0 +1,517 @@
+openapi: 3.0.3
+info:
+  title: Loyalty API
+  version: 1.14.0
+  description: |
+    HTTP API of the loyalty service: promo codes, discounts, referral rewards.
+
+    App endpoints (`/v1`) are called through the API gateway. The gateway
+    authenticates the user and passes the user context in headers.
+
+    Order endpoints (`/v1/orders`) are called by the orders and pricing services
+    with a service token.
+
+    Admin endpoints (`/admin/v1`) are called by the admin panel. The panel passes
+    the operator login and role in headers.
+  contact:
+    name: team-loyalty
+    url: https://wiki.veter.tech/display/LOY
+servers:
+  - url: http://loyalty.loyalty.svc.cluster.local
+    description: production
+  - url: http://loyalty.loyalty.stage.svc.cluster.local
+    description: staging
+tags:
+  - name: promo
+  - name: discounts
+  - name: referrals
+  - name: orders
+  - name: admin
+paths:
+  /v1/promo/apply:
+    post:
+      tags: [promo]
+      operationId: applyPromoCode
+      summary: Apply a promo code
+      description: |
+        Activates a promo code for the user. On success the user gets a discount
+        for the next order. The code from a deeplink `veter://promo?code=...` is
+        sent with `channel = deeplink`, a typed code with `channel = manual`.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserCountry'
+        - $ref: '#/components/parameters/UserCity'
+        - $ref: '#/components/parameters/UserSegment'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, channel]
+              properties:
+                code: { type: string, example: WELCOME300 }
+                channel:
+                  type: string
+                  enum: [deeplink, manual]
+      responses:
+        '200':
+          description: Promo code applied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Discount' }
+        '404':
+          description: Promo code not found (`promo_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: The user has already applied this promo code (`promo_already_used`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: |
+            Promo code cannot be applied: `promo_expired`, `promo_activations_exhausted`,
+            `promo_monthly_limit`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /v1/discounts/active:
+    get:
+      tags: [discounts]
+      operationId: listActiveDiscounts
+      summary: Active discounts of the user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Discount' }
+
+  /v1/referrals/rewards:
+    get:
+      tags: [referrals]
+      operationId: listReferralRewards
+      summary: Rewards for invited friends
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ReferralReward' }
+                  next_cursor: { type: string, nullable: true }
+
+  /v1/orders/discount-quote:
+    post:
+      tags: [orders]
+      operationId: quoteOrderDiscount
+      summary: Discount for an order being created
+      description: |
+        Picks the user's active discount that fits the order (order conditions of
+        the campaign: time of day, minimum order amount) and returns the discount
+        amount. Nothing is redeemed.
+      security:
+        - serviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, order_amount, ordered_at]
+              properties:
+                user_id: { type: integer, format: int64 }
+                order_amount: { type: integer }
+                city_id: { type: integer }
+                ordered_at: { type: string, format: date-time }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  discount_id: { type: integer, format: int64, nullable: true }
+                  discount_amount: { type: integer }
+
+  /v1/orders/{order_id}/redeem-discount:
+    post:
+      tags: [orders]
+      operationId: redeemDiscount
+      summary: Redeem a discount for a paid order
+      security:
+        - serviceToken: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [discount_id, user_id]
+              properties:
+                discount_id: { type: integer, format: int64 }
+                user_id: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Redeemed
+        '409':
+          description: Discount already used or expired (`discount_unavailable`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/v1/campaigns:
+    get:
+      tags: [admin]
+      operationId: adminListCampaigns
+      summary: Search campaigns
+      description: Search by slug or promo code substring.
+      parameters:
+        - $ref: '#/components/parameters/OperatorLogin'
+        - $ref: '#/components/parameters/OperatorRole'
+        - name: query
+          in: query
+          schema: { type: string }
+        - name: trigger
+          in: query
+          schema: { $ref: '#/components/schemas/Trigger' }
+        - name: active
+          in: query
+          schema: { type: boolean }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Campaign' }
+                  next_cursor: { type: string, nullable: true }
+    post:
+      tags: [admin]
+      operationId: adminCreateCampaign
+      summary: Create a campaign
+      description: Role `loyalty_admin`.
+      parameters:
+        - $ref: '#/components/parameters/OperatorLogin'
+        - $ref: '#/components/parameters/OperatorRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Slug or promo code already exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/v1/campaigns/{id}:
+    get:
+      tags: [admin]
+      operationId: adminGetCampaign
+      summary: Campaign card
+      description: Roles `support_l2` and above.
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/OperatorLogin'
+        - $ref: '#/components/parameters/OperatorRole'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Campaign'
+                  - type: object
+                    properties:
+                      activations: { type: integer }
+    patch:
+      tags: [admin]
+      operationId: adminUpdateCampaign
+      summary: Edit a campaign
+      description: Role `loyalty_admin`. Only the passed fields are changed.
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/OperatorLogin'
+        - $ref: '#/components/parameters/OperatorRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/v1/users/{user_id}/discounts:
+    get:
+      tags: [admin]
+      operationId: adminListUserDiscounts
+      summary: User discounts, including used and expired
+      parameters:
+        - $ref: '#/components/parameters/PathUserId'
+        - $ref: '#/components/parameters/OperatorLogin'
+        - $ref: '#/components/parameters/OperatorRole'
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Discount' }
+                  next_cursor: { type: string, nullable: true }
+    post:
+      tags: [admin]
+      operationId: adminGrantCompensation
+      summary: Grant a compensation discount
+      description: |
+        Role `loyalty_operator` and above. Limits are in `config/app.yaml`
+        (`discounts.compensation`). The operator login is saved to `created_by`,
+        the comment must contain the support ticket number.
+      parameters:
+        - $ref: '#/components/parameters/PathUserId'
+        - $ref: '#/components/parameters/OperatorLogin'
+        - $ref: '#/components/parameters/OperatorRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [percent, ttl_days, comment]
+              properties:
+                percent: { type: integer, minimum: 1 }
+                max_amount: { type: integer, nullable: true }
+                ttl_days: { type: integer, minimum: 1 }
+                comment: { type: string, example: 'Обращение #770340' }
+      responses:
+        '201':
+          description: Granted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Discount' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422':
+          description: Above the compensation limits (`compensation_limit`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/v1/users/{user_id}/referral-rewards:
+    get:
+      tags: [admin]
+      operationId: adminListUserReferralRewards
+      summary: Referral rewards of the inviting user
+      parameters:
+        - $ref: '#/components/parameters/PathUserId'
+        - $ref: '#/components/parameters/OperatorLogin'
+        - $ref: '#/components/parameters/OperatorRole'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ReferralReward' }
+
+components:
+  securitySchemes:
+    serviceToken:
+      type: apiKey
+      in: header
+      name: X-Service-Token
+  parameters:
+    UserId:
+      name: X-User-Id
+      in: header
+      required: true
+      schema: { type: integer, format: int64 }
+    UserCountry:
+      name: X-User-Country
+      in: header
+      required: true
+      schema: { type: string, example: RU }
+    UserCity:
+      name: X-User-City-Id
+      in: header
+      required: true
+      schema: { type: integer }
+    UserSegment:
+      name: X-User-Segment
+      in: header
+      required: false
+      schema: { type: string }
+    PathUserId:
+      name: user_id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    CampaignId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    OperatorLogin:
+      name: X-Operator-Login
+      in: header
+      required: true
+      schema: { type: string }
+    OperatorRole:
+      name: X-Operator-Role
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: [support_l1, support_l2, loyalty_operator, loyalty_admin]
+  responses:
+    Forbidden:
+      description: Role is not allowed (`forbidden`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Trigger:
+      type: string
+      enum: [promo_code, payment_succeeded, user_registered]
+    Discount:
+      type: object
+      required: [id, expires_at]
+      properties:
+        id: { type: integer, format: int64 }
+        campaign_id: { type: integer, format: int64, nullable: true }
+        percent: { type: integer, nullable: true }
+        amount: { type: integer, nullable: true }
+        max_amount: { type: integer, nullable: true }
+        expires_at: { type: string, format: date-time }
+        used_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+    ReferralReward:
+      type: object
+      required: [id, invitee_id, amount, status, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        invitee_id: { type: integer, format: int64 }
+        amount: { type: integer }
+        status: { type: string, example: pending }
+        status_changed_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    Conditions:
+      type: object
+      description: Grant conditions are checked on the trigger, order conditions on redeem.
+      properties:
+        countries:
+          type: array
+          items: { type: string }
+        segment: { type: string }
+        city_ids:
+          type: array
+          items: { type: integer }
+        per_user_limit: { type: integer }
+        max_activations: { type: integer }
+        sku_ids:
+          type: array
+          items: { type: integer, format: int64 }
+        payment_methods:
+          type: array
+          items: { type: string }
+        invited: { type: boolean }
+        time_from: { type: string, example: '06:00' }
+        time_to: { type: string, example: '10:00' }
+        min_order_amount: { type: integer }
+    RewardParams:
+      type: object
+      properties:
+        percent: { type: integer }
+        amount: { type: integer }
+        max_amount: { type: integer }
+        ttl_days: { type: integer }
+        recipient: { type: string, example: inviter }
+    CampaignInput:
+      type: object
+      properties:
+        slug: { type: string }
+        trigger: { $ref: '#/components/schemas/Trigger' }
+        promo_code: { type: string, nullable: true }
+        conditions: { $ref: '#/components/schemas/Conditions' }
+        reward_type:
+          type: string
+          enum: [discount, referral_reward]
+        reward_params: { $ref: '#/components/schemas/RewardParams' }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time, nullable: true }
+        is_active: { type: boolean }
+    Campaign:
+      allOf:
+        - $ref: '#/components/schemas/CampaignInput'
+        - type: object
+          required: [id, slug, trigger, reward_type, starts_at, is_active]
+          properties:
+            id: { type: integer, format: int64 }
+            created_by: { type: string }
+            created_at: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, example: promo_not_found }
+        message: { type: string }

@@ -1,0 +1,166 @@
+openapi: 3.0.3
+info:
+  title: Order History API
+  version: 2.7.0
+  description: |
+    Internal API of the order history service. Source of data for the
+    "My orders" screen in the app and for reports. Contains orders of all
+    channels and payment methods.
+
+    Internal network only, service token required.
+  contact:
+    name: team-order-history
+    url: https://wiki.veter.tech/display/OH
+servers:
+  - url: http://order-history.orders.svc.cluster.local
+    description: production
+  - url: http://order-history.orders.stage.svc.cluster.local
+    description: staging
+security:
+  - serviceToken: []
+tags:
+  - name: users
+paths:
+  /v1/users/{id}/orders:
+    get:
+      tags: [users]
+      operationId: listUserOrders
+      summary: List user orders
+      description: Paginated, newest first. p99 < 500 ms.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Status'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/users/{id}/orders/count:
+    get:
+      tags: [users]
+      operationId: countUserOrders
+      summary: Count user orders
+      description: |
+        Returns the number of the user's orders for all time.
+        p99 < 200 ms, per-client quota by agreement.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Status'
+        - name: payment_method
+          in: query
+          description: Filter by payment method.
+          schema:
+            type: string
+            enum: [any, online, cash]
+            default: any
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderCount'
+              example:
+                user_id: 48211905
+                count: 7
+                as_of: '2026-09-14T10:02:11Z'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    serviceToken:
+      type: apiKey
+      in: header
+      name: X-Service-Token
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    Status:
+      name: status
+      in: query
+      description: Which orders to count. Default is paid and completed.
+      schema:
+        type: string
+        enum: [paid_or_completed, completed, cancelled, all]
+        default: paid_or_completed
+  responses:
+    NotFound:
+      description: User not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    TooManyRequests:
+      description: Client quota exceeded
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds until the next attempt
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unavailable:
+      description: Service temporarily unavailable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    OrderCount:
+      type: object
+      required: [user_id, count, as_of]
+      properties:
+        user_id: { type: integer, format: int64 }
+        count: { type: integer, minimum: 0 }
+        as_of:
+          type: string
+          format: date-time
+          description: Point in time the value is calculated for
+    OrderList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Order' }
+        next_cursor: { type: string, nullable: true }
+    Order:
+      type: object
+      required: [order_id, status, created_at, total, currency]
+      properties:
+        order_id: { type: integer, format: int64 }
+        status:
+          type: string
+          enum: [created, paid, completed, cancelled]
+        payment_method:
+          type: string
+          enum: [online, cash]
+        total: { type: integer, description: In minor currency units }
+        currency: { type: string, example: RUB }
+        country: { type: string, example: RU }
+        created_at: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: rate_limited }
+        message: { type: string }

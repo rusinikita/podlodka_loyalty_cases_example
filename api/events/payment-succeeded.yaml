@@ -1,0 +1,56 @@
+asyncapi: 2.6.0
+info:
+  title: payment.succeeded
+  version: 4.1.0
+  description: |
+    Published by the payments service when an order payment is captured.
+    One event per successful payment. Delivery is at-least-once: the same
+    `payment_id` may arrive more than once.
+  contact:
+    name: team-payments
+    url: https://wiki.veter.tech/display/PAY
+channels:
+  payments.payment-succeeded:
+    description: Partitioned by `user_id`.
+    subscribe:
+      operationId: onPaymentSucceeded
+      message:
+        name: payment.succeeded
+        contentType: application/json
+        payload:
+          $ref: '#/components/schemas/PaymentSucceeded'
+components:
+  schemas:
+    PaymentSucceeded:
+      type: object
+      required: [event_id, event_type, occurred_at, payment_id, order_id, user_id, country, amount, currency, payment_method, items]
+      properties:
+        event_id: { type: string, format: uuid }
+        event_type: { type: string, const: payment.succeeded }
+        occurred_at: { type: string, format: date-time }
+        payment_id: { type: string }
+        order_id: { type: integer, format: int64 }
+        user_id: { type: integer, format: int64 }
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country of the order.
+        city_id: { type: integer }
+        user_segment: { type: string }
+        amount:
+          type: integer
+          description: Captured amount in minor currency units.
+        currency: { type: string }
+        payment_method:
+          type: string
+          description: Payment method as recorded by the payments service.
+        items:
+          type: array
+          items:
+            type: object
+            required: [sku_id, quantity, price]
+            properties:
+              sku_id: { type: integer, format: int64 }
+              quantity: { type: integer }
+              price:
+                type: integer
+                description: Unit price in minor currency units.

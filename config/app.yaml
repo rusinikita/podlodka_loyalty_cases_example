@@ -1,0 +1,26 @@
+http:
+  port: 8080
+  shutdown_grace: 15s
+
+database:
+  dsn: ${LOYALTY_DB_DSN}
+  pool_size: 32
+
+promo:
+  max_per_month: 2           # per user, calendar month
+  max_per_order: 1
+
+discounts:
+  stackable: false           # one active discount per order
+  compensation:
+    max_percent: 30
+    ttl_days: 14
+    role: loyalty_operator
+
+clients:
+  payout_gateway:
+    base_url: http://payout-gateway.payments.svc.cluster.local
+    timeout: 2s
+  notifications:
+    base_url: http://notifications.crm.svc.cluster.local
+    timeout: 1s

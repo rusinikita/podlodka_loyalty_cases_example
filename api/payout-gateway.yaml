@@ -1,0 +1,124 @@
+openapi: 3.0.3
+info:
+  title: Payout Gateway API
+  version: 3.2.1
+  description: |
+    Payouts to user bank cards. Cards are linked and verified by users in the
+    app; the gateway stores them, clients never see card data.
+
+    Every payout requires an `idempotency_key`. A repeated request with the same
+    key returns the original payout and does not pay again.
+
+    A payout cannot be cancelled or reversed through the API.
+
+    Internal network only, service token required. Per-client rate limit by
+    agreement with the payments team.
+  contact:
+    name: team-payments
+    url: https://wiki.veter.tech/display/PAY
+servers:
+  - url: http://payout-gateway.payments.svc.cluster.local
+    description: production
+  - url: http://payout-gateway.payments.stage.svc.cluster.local
+    description: staging
+security:
+  - serviceToken: []
+paths:
+  /v1/payouts:
+    post:
+      operationId: createPayout
+      summary: Pay out to the user's card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idempotency_key, user_id, amount, currency, purpose]
+              properties:
+                idempotency_key:
+                  type: string
+                  maxLength: 128
+                user_id: { type: integer, format: int64 }
+                amount: { type: integer, description: In major currency units }
+                currency: { type: string, example: RUB }
+                purpose:
+                  type: string
+                  description: Payout purpose shown in reports.
+                  example: referral_reward
+      responses:
+        '200':
+          description: Payout accepted, or already accepted earlier with this key
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payout' }
+        '409':
+          description: The key was used with different parameters (`idempotency_conflict`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: |
+            Payout is not possible: `no_payout_method` (the user has no linked
+            and verified card), `user_blocked`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Client rate limit exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: Service temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /v1/payouts/{payout_id}:
+    get:
+      operationId: getPayout
+      summary: Payout status
+      parameters:
+        - name: payout_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payout' }
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  securitySchemes:
+    serviceToken:
+      type: apiKey
+      in: header
+      name: X-Service-Token
+  schemas:
+    Payout:
+      type: object
+      required: [payout_id, status, created_at]
+      properties:
+        payout_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [accepted, sent, credited, failed]
+          description: |
+            `sent`: transferred to the bank, crediting may take up to 3 business days.
+        card_mask: { type: string, example: '220220******4417' }
+        created_at: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
