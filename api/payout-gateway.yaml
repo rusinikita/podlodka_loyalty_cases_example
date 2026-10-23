@@ -15,7 +15,7 @@ info:
     agreement with the payments team.
   contact:
     name: team-payments
-    url: https://wiki.veter.tech/display/PAY
+    url: https://wiki.shnyr.tech/display/PAY
 servers:
   - url: http://payout-gateway.payments.svc.cluster.local
     description: production

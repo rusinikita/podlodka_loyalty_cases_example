@@ -7,7 +7,7 @@ info:
     Delivery is at-least-once.
   contact:
     name: team-users
-    url: https://wiki.veter.tech/display/USR
+    url: https://wiki.shnyr.tech/display/USR
 channels:
   users.user-registered:
     description: Partitioned by `user_id`.

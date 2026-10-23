@@ -12,7 +12,7 @@ info:
     Internal network only, service token required.
   contact:
     name: team-crm
-    url: https://wiki.veter.tech/display/CRM
+    url: https://wiki.shnyr.tech/display/CRM
 servers:
   - url: http://notifications.crm.svc.cluster.local
     description: production

@@ -15,7 +15,7 @@ info:
     the operator login and role in headers.
   contact:
     name: team-loyalty
-    url: https://wiki.veter.tech/display/LOY
+    url: https://wiki.shnyr.tech/display/LOY
 servers:
   - url: http://loyalty.loyalty.svc.cluster.local
     description: production
@@ -35,7 +35,7 @@ paths:
       summary: Apply a promo code
       description: |
         Activates a promo code for the user. On success the user gets a discount
-        for the next order. The code from a deeplink `veter://promo?code=...` is
+        for the next order. The code from a deeplink `shnyr://promo?code=...` is
         sent with `channel = deeplink`, a typed code with `channel = manual`.
       parameters:
         - $ref: '#/components/parameters/UserId'

@@ -13,7 +13,7 @@ info:
     Internal network only, service token required.
   contact:
     name: team-antifraud
-    url: https://wiki.veter.tech/display/AF
+    url: https://wiki.shnyr.tech/display/AF
 servers:
   - url: http://antifraud.antifraud.svc.cluster.local
     description: production

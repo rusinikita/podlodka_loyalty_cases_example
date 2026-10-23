@@ -8,7 +8,7 @@ info:
     `payment_id` may arrive more than once.
   contact:
     name: team-payments
-    url: https://wiki.veter.tech/display/PAY
+    url: https://wiki.shnyr.tech/display/PAY
 channels:
   payments.payment-succeeded:
     description: Partitioned by `user_id`.

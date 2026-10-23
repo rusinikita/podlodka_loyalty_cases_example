@@ -10,7 +10,7 @@ info:
     Internal network only, service token required.
   contact:
     name: team-order-history
-    url: https://wiki.veter.tech/display/OH
+    url: https://wiki.shnyr.tech/display/OH
 servers:
   - url: http://order-history.orders.svc.cluster.local
     description: production
