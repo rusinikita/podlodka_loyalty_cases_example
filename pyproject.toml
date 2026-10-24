@@ -30,6 +30,7 @@ build-backend = "hatchling.build"
 [tool.mypy]
 python_version = "3.12"
 strict = true
+exclude = ["^e2e/"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
