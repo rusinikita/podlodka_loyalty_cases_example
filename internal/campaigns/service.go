@@ -32,20 +32,28 @@ type Referrals interface {
 	Create(ctx context.Context, nr referrals.NewReward) error
 }
 
+// OrderHistory counts the user's paid and completed orders across all
+// channels and payment methods.
+type OrderHistory interface {
+	CountOrders(ctx context.Context, userID int64) (int, error)
+}
+
 type Service struct {
 	repo             Repository
 	discounts        Discounts
 	referrals        Referrals
+	orders           OrderHistory
 	maxPromoPerMonth int
 	log              *slog.Logger
 	now              func() time.Time
 }
 
-func NewService(repo Repository, d Discounts, r Referrals, maxPromoPerMonth int, log *slog.Logger) *Service {
+func NewService(repo Repository, d Discounts, r Referrals, orders OrderHistory, maxPromoPerMonth int, log *slog.Logger) *Service {
 	return &Service{
 		repo:             repo,
 		discounts:        d,
 		referrals:        r,
+		orders:           orders,
 		maxPromoPerMonth: maxPromoPerMonth,
 		log:              log,
 		now:              time.Now,
@@ -137,6 +145,15 @@ func (s *Service) checkGrant(ctx context.Context, c Campaign, ev Event) error {
 	if cond.Invited && ev.InvitedBy == 0 {
 		return ineligible("not_invited")
 	}
+	if cond.FirstOrder {
+		first, err := s.isFirstOrder(ctx, ev.UserID)
+		if err != nil {
+			return err
+		}
+		if !first {
+			return ineligible("not_first_order")
+		}
+	}
 
 	if cond.PerUserLimit > 0 {
 		n, err := s.discounts.CountByUser(ctx, c.ID, ev.UserID)
@@ -157,6 +174,16 @@ func (s *Service) checkGrant(ctx context.Context, c Campaign, ev Event) error {
 		}
 	}
 	return nil
+}
+
+// isFirstOrder reports whether the payment is for the user's first order:
+// the order history, which already includes the paid order, has exactly one.
+func (s *Service) isFirstOrder(ctx context.Context, userID int64) (bool, error) {
+	n, err := s.orders.CountOrders(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("count user orders: %w", err)
+	}
+	return n == 1, nil
 }
 
 func (s *Service) grant(ctx context.Context, c Campaign, ev Event) error {

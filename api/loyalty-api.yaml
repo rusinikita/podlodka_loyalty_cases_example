@@ -475,6 +475,9 @@ components:
           type: array
           items: { type: string }
         invited: { type: boolean }
+        first_order:
+          type: boolean
+          description: Only the payment for the user's first order, by the order history service.
         time_from: { type: string, example: '06:00' }
         time_to: { type: string, example: '10:00' }
         min_order_amount: { type: integer }
