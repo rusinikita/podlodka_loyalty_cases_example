@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: loyalty
+  config:
+    import:
+      - file:${LOYALTY_CONFIG_DIR:config}/app.yaml
+      - file:${LOYALTY_CONFIG_DIR:config}/workers.yaml
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    deserialization:
+      fail-on-unknown-properties: true
+  lifecycle:
+    timeout-per-shutdown-phase: ${http.shutdown_grace}
+  main:
+    banner-mode: off
+
+server:
+  port: ${http.port}
+  shutdown: graceful
+
+loyalty:
+  consumers-file: ${LOYALTY_CONFIG_DIR:config}/consumers.yaml
