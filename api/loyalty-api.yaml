@@ -73,7 +73,7 @@ paths:
         '422':
           description: |
             Promo code cannot be applied: `promo_expired`, `promo_activations_exhausted`,
-            `promo_monthly_limit`.
+            `promo_monthly_limit`, `promo_country_unavailable`.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
