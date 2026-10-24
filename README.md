@@ -55,7 +55,7 @@ flowchart LR
     subgraph POD["Деплоймент loyalty, 8 подов"]
       api["HTTP API<br/>приложение и админка"]
       cons["Консьюмеры<br/>payment-succeeded<br/>user-registered"]
-      work["Воркеры<br/>reward-payouts<br/>discount-expiry"]
+      work["Воркер<br/>reward-payouts"]
     end
     tools["loyalty-tools<br/>утилиты дежурного"]
   end
@@ -98,7 +98,6 @@ flowchart LR
     cPay["Kafka: payment-succeeded<br/>группа loyalty-payments"]
     cReg["Kafka: user-registered<br/>группа loyalty-referrals"]
     wPay["Воркер reward-payouts<br/>каждые 5 мин"]
-    wExp["Воркер discount-expiry<br/>раз в час"]
   end
 
   subgraph CORE["Ядро: сервисы"]
@@ -124,7 +123,6 @@ flowchart LR
   campSvc -->|discount| discSvc
   campSvc -->|referral_reward| rewSvc
   wPay --> rewSvc
-  wExp --> discSvc
 
   campSvc --> campRepo
   promoSvc --> campRepo
@@ -165,7 +163,6 @@ flowchart LR
 | Воркер | Расписание | Что делает |
 |---|---|---|
 | `reward-payouts` | При старте пода и дальше каждые 5 минут | Проходит награды в статусе `Pending` батчами и выплачивает их через `payout-gateway` с `idempotency_key` = id награды. Выплачено → `Paid`. У пользователя нет карты для выплат → награда остаётся `Pending` до следующего прохода |
-| `discount-expiry` | Раз в час | Гасит истёкшие скидки |
 
 Воркеры запускаются в каждом поде. Расписания: `config/workers.yaml`.
 

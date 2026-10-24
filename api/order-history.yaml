@@ -45,8 +45,6 @@ paths:
                 $ref: '#/components/schemas/OrderList'
         '404':
           $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
         '503':
           $ref: '#/components/responses/Unavailable'
   /v1/users/{id}/orders/count:
@@ -56,7 +54,7 @@ paths:
       summary: Count user orders
       description: |
         Returns the number of the user's orders for all time.
-        p99 < 200 ms, per-client quota by agreement.
+        p99 < 200 ms.
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/Status'
@@ -80,8 +78,6 @@ paths:
                 as_of: '2026-09-14T10:02:11Z'
         '404':
           $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
         '503':
           $ref: '#/components/responses/Unavailable'
 components:
@@ -107,15 +103,6 @@ components:
   responses:
     NotFound:
       description: User not found
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    TooManyRequests:
-      description: Client quota exceeded
-      headers:
-        Retry-After:
-          schema: { type: integer }
-          description: Seconds until the next attempt
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }

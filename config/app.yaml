@@ -8,10 +8,8 @@ database:
 
 promo:
   max_per_month: 2           # per user, calendar month
-  max_per_order: 1
 
 discounts:
-  stackable: false           # one active discount per order
   compensation:
     max_percent: 30
     ttl_days: 14

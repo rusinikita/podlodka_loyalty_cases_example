@@ -114,9 +114,7 @@ ORDER BY 1;
 
 | Параметр | Где |
 |---|---|
-| Промокодов на заказ | `config/app.yaml`, `promo.max_per_order` |
 | Промокодов в месяц на пользователя | `config/app.yaml`, `promo.max_per_month` |
-| Скидки не суммируются | `config/app.yaml`, `discounts.stackable` |
 | Компенсационная скидка: процент и срок | `config/app.yaml`, `discounts.compensation` |
 | Срок скидки на следующий заказ | Кампания, `reward_params.ttl_days` |
 | Сумма награды за друга | Кампания, `reward_params.amount` |
