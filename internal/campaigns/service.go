@@ -62,10 +62,7 @@ func (s *Service) Handle(ctx context.Context, ev Event) error {
 
 	var matched []Campaign
 	for _, c := range active {
-		err := checkCountry(c, ev)
-		if err == nil {
-			err = s.checkGrant(ctx, c, ev)
-		}
+		err := s.checkGrant(ctx, c, ev)
 		var inel *Ineligible
 		if errors.As(err, &inel) {
 			s.log.DebugContext(ctx, "campaign skipped",
@@ -115,20 +112,14 @@ func (s *Service) ApplyPromoCode(ctx context.Context, c Campaign, ev Event) (dis
 	return s.grantDiscount(ctx, c, ev)
 }
 
-// checkCountry is checked for trigger campaigns only: a promo code works
-// wherever it was handed out.
-func checkCountry(c Campaign, ev Event) error {
-	if len(c.Conditions.Countries) > 0 && !slices.Contains(c.Conditions.Countries, ev.Country) {
-		return ineligible("country")
-	}
-	return nil
-}
-
 // checkGrant returns an *Ineligible error if a grant condition of c does not
 // match the event.
 func (s *Service) checkGrant(ctx context.Context, c Campaign, ev Event) error {
 	cond := c.Conditions
 
+	if len(cond.Countries) > 0 && !slices.Contains(cond.Countries, ev.Country) {
+		return &Ineligible{Reason: "country", Err: ErrWrongCountry}
+	}
 	if cond.Segment != "" && cond.Segment != SegmentAll && cond.Segment != ev.Segment {
 		return ineligible("segment")
 	}

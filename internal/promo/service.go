@@ -24,6 +24,7 @@ var (
 	ErrPromoAlreadyUsed  = errors.New("promo already used")
 	ErrPromoLimitReached = errors.New("promo activation limit reached")
 	ErrMonthlyLimit      = errors.New("monthly promo limit reached")
+	ErrPromoWrongCountry = errors.New("promo not available in the user's country")
 )
 
 type Campaigns interface {
@@ -90,6 +91,8 @@ func (s *Service) Apply(ctx context.Context, req ApplyRequest) (discounts.Discou
 		return discounts.Discount{}, ErrPromoLimitReached
 	case errors.Is(err, campaigns.ErrMonthlyLimit):
 		return discounts.Discount{}, ErrMonthlyLimit
+	case errors.Is(err, campaigns.ErrWrongCountry):
+		return discounts.Discount{}, ErrPromoWrongCountry
 	default:
 		return discounts.Discount{}, fmt.Errorf("apply promo campaign %d: %w", c.ID, err)
 	}

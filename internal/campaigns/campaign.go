@@ -33,6 +33,7 @@ var (
 	ErrInvalid  = errors.New("invalid campaign")
 
 	ErrNotEligible          = errors.New("not eligible")
+	ErrWrongCountry         = errors.New("campaign is not available in the user's country")
 	ErrExpired              = errors.New("campaign expired")
 	ErrAlreadyUsed          = errors.New("per-user limit reached")
 	ErrActivationsExhausted = errors.New("campaign activations exhausted")
@@ -104,7 +105,7 @@ type Event struct {
 }
 
 // Ineligible tells which grant condition did not match. It wraps
-// ErrNotEligible, ErrAlreadyUsed or ErrActivationsExhausted.
+// ErrNotEligible, ErrWrongCountry, ErrAlreadyUsed or ErrActivationsExhausted.
 type Ineligible struct {
 	Reason string
 	Err    error

@@ -86,6 +86,8 @@ func (h *Handler) applyPromo(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "promo_activations_exhausted", "")
 	case errors.Is(err, promo.ErrMonthlyLimit):
 		httpx.Error(w, http.StatusUnprocessableEntity, "promo_monthly_limit", "")
+	case errors.Is(err, promo.ErrPromoWrongCountry):
+		httpx.Error(w, http.StatusUnprocessableEntity, "promo_country_unavailable", "")
 	default:
 		httpx.Internal(w, r, h.log, err)
 	}
