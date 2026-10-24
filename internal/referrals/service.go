@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"git.shnyr.tech/loyalty/loyalty/internal/clients/antifraud"
 	"git.shnyr.tech/loyalty/loyalty/internal/clients/payoutgateway"
 )
 
@@ -40,31 +41,41 @@ type Repository interface {
 	CountByCampaign(ctx context.Context, campaignID int64) (int64, error)
 	ByStatusAfter(ctx context.Context, status RewardStatus, afterID int64, limit int) ([]Reward, error)
 	MarkPaid(ctx context.Context, id int64, payoutID string) error
+	// SetStatus moves the reward from one status to another; a reward that
+	// is no longer in from is left as is.
+	SetStatus(ctx context.Context, id int64, from, to RewardStatus) error
 }
 
 type PayoutClient interface {
 	Pay(ctx context.Context, req payoutgateway.PayoutRequest) (payoutgateway.Payout, error)
 }
 
+type AntifraudClient interface {
+	Verdicts(ctx context.Context, items []antifraud.RewardCheck) ([]antifraud.RewardVerdict, error)
+}
+
 type Service struct {
-	repo    Repository
-	payouts PayoutClient
-	log     *slog.Logger
+	repo      Repository
+	payouts   PayoutClient
+	antifraud AntifraudClient
+	log       *slog.Logger
+	now       func() time.Time
 }
 
-func NewService(repo Repository, payouts PayoutClient, log *slog.Logger) *Service {
-	return &Service{repo: repo, payouts: payouts, log: log}
+func NewService(repo Repository, payouts PayoutClient, af AntifraudClient, log *slog.Logger) *Service {
+	return &Service{repo: repo, payouts: payouts, antifraud: af, log: log, now: time.Now}
 }
 
-// Create saves a reward for the inviter. The payout is done later by
-// the reward-payouts worker.
+// Create saves a reward for the inviter. The reward waits for the antifraud
+// verdict (see CheckAntifraud); once approved, it is paid by the
+// reward-payouts worker.
 func (s *Service) Create(ctx context.Context, nr NewReward) error {
 	created, err := s.repo.Insert(ctx, Reward{
 		CampaignID: nr.CampaignID,
 		UserID:     nr.UserID,
 		InviteeID:  nr.InviteeID,
 		Amount:     nr.Amount,
-		Status:     RewardPending,
+		Status:     RewardWaitingAntifraudResult,
 	})
 	if err != nil {
 		return fmt.Errorf("insert reward: %w", err)
