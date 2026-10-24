@@ -26,3 +26,4 @@ __pycache__/
 .pytest_cache/
 .phpunit.result.cache
 *.tsbuildinfo
+/bootstrap/cache/*.php
