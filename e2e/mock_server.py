@@ -60,8 +60,7 @@ class MockServer:
 
             def _serve(self, method: str) -> None:
                 path = self.path.split("?", 1)[0]
-                length = int(self.headers.get("Content-Length") or 0)
-                raw = self.rfile.read(length) if length else b""
+                raw = self._read_body()
                 body = json.loads(raw) if raw else None
                 mock._record(Request(method, path, dict(self.headers.items()), body))
 
@@ -72,6 +71,16 @@ class MockServer:
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
+
+            def _read_body(self) -> bytes:
+                if self.headers.get("Transfer-Encoding", "").lower() != "chunked":
+                    return self.rfile.read(int(self.headers.get("Content-Length") or 0))
+                chunks = []
+                while size := int(self.rfile.readline().split(b";", 1)[0].strip(), 16):
+                    chunks.append(self.rfile.read(size))
+                    self.rfile.readline()
+                self.rfile.readline()
+                return b"".join(chunks)
 
             def log_message(self, format: str, *args: Any) -> None:
                 pass
