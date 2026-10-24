@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 
 	"git.shnyr.tech/loyalty/loyalty/internal/campaigns"
 	"git.shnyr.tech/loyalty/loyalty/internal/discounts"
@@ -50,8 +53,33 @@ func NewService(c Campaigns, log *slog.Logger) *Service {
 	return &Service{campaigns: c, log: log}
 }
 
+// normalizeCode turns user input into the form promo codes are stored in.
+// Codes are often pasted from emails, messengers and notes, and the pasted
+// text carries invisible characters (zero-width spaces, soft hyphens,
+// non-breaking spaces) or full-width forms from some keyboards. NFKC folds
+// compatibility forms (full-width letters and digits, ligatures) into plain
+// ones. Invisible characters are dropped first, before NFKC turns no-break
+// spaces into ordinary ones.
 func normalizeCode(raw string) string {
-	return strings.ToUpper(strings.TrimSpace(raw))
+	s := strings.Map(func(r rune) rune {
+		if isInvisible(r) {
+			return -1
+		}
+		return r
+	}, raw)
+	s = norm.NFKC.String(s)
+	return strings.ToUpper(strings.TrimSpace(s))
+}
+
+// isInvisible reports whether r is not rendered or is rendered as a blank
+// inside a code: format characters (ZWSP, ZWNJ, ZWJ, word joiner, BOM, soft
+// hyphen) and no-break spaces.
+func isInvisible(r rune) bool {
+	switch r {
+	case '\u00A0', '\u2007', '\u202F':
+		return true
+	}
+	return unicode.Is(unicode.Cf, r)
 }
 
 // Apply activates the promo code for the user: the user gets the discount
