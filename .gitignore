@@ -15,7 +15,7 @@
 # Dependencies
 /node_modules/
 /vendor/
-/.venv/
+.venv/
 /.gradle/
 
 # Caches
