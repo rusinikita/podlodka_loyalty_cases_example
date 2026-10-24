@@ -4,3 +4,25 @@
 .DS_Store
 .env
 .env.*
+
+# Build output
+/bin/
+/build/
+/dist/
+/target/
+*.class
+
+# Dependencies
+/node_modules/
+/vendor/
+/.venv/
+/.gradle/
+
+# Caches
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.phpunit.result.cache
+*.tsbuildinfo
