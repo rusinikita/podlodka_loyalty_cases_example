@@ -4,3 +4,8 @@
 .DS_Store
 .env
 .env.*
+
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
