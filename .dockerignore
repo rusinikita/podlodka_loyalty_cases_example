@@ -1,0 +1,6 @@
+.git
+.idea
+.vscode
+node_modules
+dist
+e2e
