@@ -68,6 +68,18 @@ public class RewardRepository {
                 RewardStatus.PAID.code(), payoutId, id, RewardStatus.PENDING.code());
     }
 
+    /**
+     * Moves the reward from one status to another; a reward that is no longer
+     * in from is left as is.
+     */
+    public void setStatus(long id, RewardStatus from, RewardStatus to) {
+        jdbc.update("""
+                UPDATE referral_rewards
+                SET status = ?, status_changed_at = now()
+                WHERE id = ? AND status = ?""",
+                to.code(), id, from.code());
+    }
+
     private static Reward map(ResultSet rs, int row) throws SQLException {
         return new Reward(
                 rs.getLong("id"),

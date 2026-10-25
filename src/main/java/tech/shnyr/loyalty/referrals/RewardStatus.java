@@ -8,7 +8,9 @@ import java.util.Locale;
 public enum RewardStatus {
     UNSPECIFIED,
     PENDING,
-    PAID;
+    PAID,
+    WAITING_ANTIFRAUD_RESULT,
+    REJECTED;
 
     public short code() {
         return (short) ordinal();

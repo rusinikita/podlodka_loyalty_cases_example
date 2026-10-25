@@ -37,7 +37,8 @@ public class WorkersConfiguration implements SchedulingConfigurer {
     public WorkersConfiguration(WorkersProperties workers, ReferralService referrals) {
         this.workers = workers;
         this.jobs = Map.of(
-                "reward-payouts", referrals::payPending);
+                "reward-payouts", referrals::payPending,
+                "reward-antifraud-check", referrals::checkAntifraud);
     }
 
     @Bean
