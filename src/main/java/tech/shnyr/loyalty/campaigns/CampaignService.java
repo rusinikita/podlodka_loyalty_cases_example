@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import tech.shnyr.loyalty.campaigns.IneligibleException.Kind;
+import tech.shnyr.loyalty.clients.orderhistory.OrderHistoryClient;
 import tech.shnyr.loyalty.config.PromoProperties;
 import tech.shnyr.loyalty.discounts.Discount;
 import tech.shnyr.loyalty.discounts.DiscountService;
@@ -32,14 +33,16 @@ public class CampaignService {
     private final CampaignRepository repo;
     private final DiscountService discounts;
     private final ReferralService referrals;
+    private final OrderHistoryClient orders;
     private final int maxPromoPerMonth;
     private final Clock clock;
 
     public CampaignService(CampaignRepository repo, DiscountService discounts, ReferralService referrals,
-                           PromoProperties promo, Clock clock) {
+                           OrderHistoryClient orders, PromoProperties promo, Clock clock) {
         this.repo = repo;
         this.discounts = discounts;
         this.referrals = referrals;
+        this.orders = orders;
         this.maxPromoPerMonth = promo.maxPerMonth();
         this.clock = clock;
     }
@@ -117,6 +120,9 @@ public class CampaignService {
         if (cond.invited() && ev.invitedBy() == 0) {
             throw IneligibleException.notEligible("not_invited");
         }
+        if (cond.firstOrder() && !isFirstOrder(ev.userId())) {
+            throw IneligibleException.notEligible("not_first_order");
+        }
 
         if (cond.perUserLimit() > 0 && discounts.countByUser(c.id(), ev.userId()) >= cond.perUserLimit()) {
             throw new IneligibleException(Kind.ALREADY_USED, "per_user_limit");
@@ -124,6 +130,14 @@ public class CampaignService {
         if (cond.maxActivations() > 0 && discounts.countByCampaign(c.id()) >= cond.maxActivations()) {
             throw new IneligibleException(Kind.ACTIVATIONS_EXHAUSTED, "max_activations");
         }
+    }
+
+    /**
+     * Whether the payment is for the user's first order: the order history,
+     * which already includes the paid order, has exactly one.
+     */
+    private boolean isFirstOrder(long userId) {
+        return orders.countOrders(userId) == 1;
     }
 
     private void grant(Campaign c, CampaignEvent ev) {
