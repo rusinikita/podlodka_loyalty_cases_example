@@ -17,6 +17,7 @@ from loyalty import worker
 from loyalty.admin.router import admin_router
 from loyalty.campaigns.repository import PostgresCampaignRepository
 from loyalty.campaigns.service import CampaignService
+from loyalty.clients.antifraud import AntifraudClient
 from loyalty.clients.notifications import NotificationsClient
 from loyalty.clients.payout_gateway import PayoutGatewayClient
 from loyalty.config.app import load_app, load_workers
@@ -52,9 +53,10 @@ async def run() -> None:
     notifications = NotificationsClient(
         clients.notifications.base_url, service_token, clients.notifications.timeout.total_seconds()
     )
+    antifraud = AntifraudClient(clients.antifraud.base_url, service_token, clients.antifraud.timeout.total_seconds())
 
     discount_service = DiscountService(PostgresDiscountRepository(db), notifications, app_cfg.discounts.compensation)
-    referral_service = ReferralService(PostgresRewardRepository(db), payouts)
+    referral_service = ReferralService(PostgresRewardRepository(db), payouts, antifraud)
     campaign_service = CampaignService(
         PostgresCampaignRepository(db), discount_service, referral_service, app_cfg.promo.max_per_month
     )
@@ -95,6 +97,7 @@ async def run() -> None:
 
     jobs: dict[str, Callable[[int], Awaitable[None]]] = {
         "reward-payouts": referral_service.pay_pending,
+        "reward-antifraud-check": referral_service.check_antifraud,
     }
     workers: list[Callable[[], Coroutine[Any, Any, None]]] = []
     for w in workers_cfg.workers:
@@ -122,6 +125,7 @@ async def run() -> None:
     finally:
         await payouts.aclose()
         await notifications.aclose()
+        await antifraud.aclose()
         await db.close()
 
 
