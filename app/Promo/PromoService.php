@@ -24,6 +24,7 @@ use App\Promo\Exceptions\PromoMonthlyLimitException;
 use App\Promo\Exceptions\PromoNotFoundException;
 use App\Promo\Exceptions\PromoWrongCountryException;
 use Illuminate\Support\Facades\Log;
+use Normalizer;
 
 /**
  * Promo codes entered by users: finds the campaign of the code and passes it
@@ -35,9 +36,30 @@ final class PromoService
         private readonly CampaignService $campaigns,
     ) {}
 
+    /**
+     * Format characters (ZWSP, ZWNJ, ZWJ, word joiner, BOM, soft hyphen) and
+     * no-break spaces: not rendered or rendered as a blank inside a code.
+     */
+    private const INVISIBLE = '/[\p{Cf}\x{00A0}\x{2007}\x{202F}]/u';
+
+    /**
+     * Turns user input into the form promo codes are stored in. Codes are
+     * often pasted from emails, messengers and notes, and the pasted text
+     * carries invisible characters (zero-width spaces, soft hyphens,
+     * non-breaking spaces) or full-width forms from some keyboards. NFKC folds
+     * compatibility forms (full-width letters and digits, ligatures) into
+     * plain ones. Invisible characters are dropped first, before NFKC turns
+     * no-break spaces into ordinary ones.
+     */
     public static function normalizeCode(string $raw): string
     {
-        return mb_strtoupper(trim($raw));
+        $code = preg_replace(self::INVISIBLE, '', $raw) ?? $raw;
+        $code = Normalizer::normalize($code, Normalizer::FORM_KC);
+        if ($code === false) {
+            $code = $raw;
+        }
+
+        return mb_strtoupper(trim($code));
     }
 
     /**
