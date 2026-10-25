@@ -1,0 +1,6 @@
+.git
+.idea
+.vscode
+vendor
+bootstrap/cache/*.php
+e2e
