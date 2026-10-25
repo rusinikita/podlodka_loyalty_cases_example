@@ -2,6 +2,7 @@ package tech.shnyr.loyalty.promo;
 
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
+import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -38,8 +39,34 @@ public class PromoService {
     public record ApplyRequest(long userId, String country, int cityId, String segment, String code, String channel) {
     }
 
+    /**
+     * Turns user input into the form promo codes are stored in. Codes are
+     * often pasted from emails, messengers and notes, and the pasted text
+     * carries invisible characters (zero-width spaces, soft hyphens,
+     * non-breaking spaces) or full-width forms from some keyboards. NFKC
+     * folds compatibility forms (full-width letters and digits, ligatures)
+     * into plain ones. Invisible characters are dropped first, before NFKC
+     * turns no-break spaces into ordinary ones.
+     */
     static String normalizeCode(String raw) {
-        return raw.strip().toUpperCase(Locale.ROOT);
+        StringBuilder sb = new StringBuilder(raw.length());
+        raw.codePoints()
+                .filter(cp -> !isInvisible(cp))
+                .forEach(sb::appendCodePoint);
+        String s = Normalizer.normalize(sb, Normalizer.Form.NFKC);
+        return s.strip().toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * Whether the code point is not rendered or is rendered as a blank inside
+     * a code: format characters (ZWSP, ZWNJ, ZWJ, word joiner, BOM, soft
+     * hyphen) and no-break spaces.
+     */
+    private static boolean isInvisible(int cp) {
+        return switch (cp) {
+            case '\u00A0', '\u2007', '\u202F' -> true;
+            default -> Character.getType(cp) == Character.FORMAT;
+        };
     }
 
     /**
