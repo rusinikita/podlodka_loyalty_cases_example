@@ -11,6 +11,7 @@ use App\Campaigns\Exceptions\IneligibleException;
 use App\Campaigns\Exceptions\InvalidCampaignException;
 use App\Campaigns\Exceptions\MonthlyLimitException;
 use App\Campaigns\Exceptions\WrongCountryException;
+use App\Clients\OrderHistory\OrderHistoryClient;
 use App\Discounts\Discount;
 use App\Discounts\DiscountService;
 use App\Discounts\GrantRequest;
@@ -31,6 +32,7 @@ final class CampaignService
         private readonly CampaignRepository $campaigns,
         private readonly DiscountService $discounts,
         private readonly ReferralService $referrals,
+        private readonly OrderHistoryClient $orders,
         private readonly int $maxPromoPerMonth,
     ) {}
 
@@ -163,6 +165,9 @@ final class CampaignService
         if ($cond->invited && $event->invitedBy === null) {
             throw new IneligibleException('not_invited');
         }
+        if ($cond->firstOrder && ! $this->isFirstOrder($event->userId)) {
+            throw new IneligibleException('not_first_order');
+        }
 
         if ($cond->perUserLimit > 0
             && $this->discounts->countByUser($campaign->id, $event->userId) >= $cond->perUserLimit) {
@@ -172,6 +177,15 @@ final class CampaignService
             && $this->discounts->countByCampaign($campaign->id) >= $cond->maxActivations) {
             throw new ActivationsExhaustedException;
         }
+    }
+
+    /**
+     * Whether the payment is for the user's first order: the order history,
+     * which already includes the paid order, has exactly one.
+     */
+    private function isFirstOrder(int $userId): bool
+    {
+        return $this->orders->countOrders($userId) === 1;
     }
 
     private function grant(Campaign $campaign, Event $event): void

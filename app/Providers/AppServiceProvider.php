@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Campaigns\CampaignService;
 use App\Clients\Notifications\NotificationsClient;
+use App\Clients\OrderHistory\OrderHistoryClient;
 use App\Clients\PayoutGateway\PayoutGatewayClient;
 use App\Discounts\Compensation;
 use App\Support\Duration;
@@ -28,6 +29,13 @@ final class AppServiceProvider extends ServiceProvider
             config('loyalty.clients.notifications.base_url'),
             config('services.service_token'),
             Duration::seconds(config('loyalty.clients.notifications.timeout')),
+        ));
+
+        $this->app->singleton(OrderHistoryClient::class, fn ($app) => new OrderHistoryClient(
+            $app->make(Factory::class),
+            config('loyalty.clients.order_history.base_url'),
+            config('services.service_token'),
+            Duration::seconds(config('loyalty.clients.order_history.timeout')),
         ));
 
         $this->app->singleton(Compensation::class, fn () => new Compensation(
