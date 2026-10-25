@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Campaigns\CampaignService;
+use App\Clients\Antifraud\AntifraudClient;
 use App\Clients\Notifications\NotificationsClient;
 use App\Clients\PayoutGateway\PayoutGatewayClient;
 use App\Discounts\Compensation;
@@ -28,6 +29,13 @@ final class AppServiceProvider extends ServiceProvider
             config('loyalty.clients.notifications.base_url'),
             config('services.service_token'),
             Duration::seconds(config('loyalty.clients.notifications.timeout')),
+        ));
+
+        $this->app->singleton(AntifraudClient::class, fn ($app) => new AntifraudClient(
+            $app->make(Factory::class),
+            config('loyalty.clients.antifraud.base_url'),
+            config('services.service_token'),
+            Duration::seconds(config('loyalty.clients.antifraud.timeout')),
         ));
 
         $this->app->singleton(Compensation::class, fn () => new Compensation(

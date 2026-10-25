@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schedule;
 // Commands of the workers in config/workers.yaml.
 $commands = [
     'reward-payouts' => 'rewards:pay',
+    'reward-antifraud-check' => 'rewards:check-antifraud',
 ];
 
 foreach (WorkerSchedule::all() as $worker) {

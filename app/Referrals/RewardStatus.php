@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Referrals;
 
+use Illuminate\Support\Str;
+
 /**
  * State of a referral reward, stored in referral_rewards.status.
  */
@@ -11,6 +13,8 @@ enum RewardStatus: int
 {
     case Pending = 1;
     case Paid = 2;
+    case WaitingAntifraudResult = 3;
+    case Rejected = 4;
 
     /**
      * The API name of a stored status: "pending", "paid".
@@ -22,6 +26,6 @@ enum RewardStatus: int
 
     public function label(): string
     {
-        return strtolower($this->name);
+        return Str::snake($this->name);
     }
 }
