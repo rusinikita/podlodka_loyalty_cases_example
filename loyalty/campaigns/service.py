@@ -36,17 +36,26 @@ class Referrals(Protocol):
     async def create(self, nr: NewReward) -> None: ...
 
 
+class OrderHistory(Protocol):
+    """Counts the user's paid and completed orders across all channels and
+    payment methods."""
+
+    async def count_orders(self, user_id: int) -> int: ...
+
+
 class CampaignService:
     def __init__(
         self,
         repo: PostgresCampaignRepository,
         discounts: Discounts,
         referrals: Referrals,
+        orders: OrderHistory,
         max_promo_per_month: int,
     ) -> None:
         self._repo = repo
         self._discounts = discounts
         self._referrals = referrals
+        self._orders = orders
         self._max_promo_per_month = max_promo_per_month
 
     async def handle(self, ev: Event) -> None:
@@ -122,6 +131,8 @@ class CampaignService:
             raise Ineligible("payment_method")
         if cond.invited and not ev.invited_by:
             raise Ineligible("not_invited")
+        if cond.first_order and not await self._is_first_order(ev.user_id):
+            raise Ineligible("not_first_order")
 
         if cond.per_user_limit:
             n = await self._discounts.count_by_user(c.id, ev.user_id)
@@ -131,6 +142,11 @@ class CampaignService:
             n = await self._discounts.count_by_campaign(c.id)
             if n >= cond.max_activations:
                 raise ActivationsExhausted()
+
+    async def _is_first_order(self, user_id: int) -> bool:
+        """Whether the payment is for the user's first order: the order
+        history, which already includes the paid order, has exactly one."""
+        return await self._orders.count_orders(user_id) == 1
 
     async def _grant(self, c: Campaign, ev: Event) -> None:
         match c.reward_type:

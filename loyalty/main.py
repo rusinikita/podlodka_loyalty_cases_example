@@ -18,6 +18,7 @@ from loyalty.admin.router import admin_router
 from loyalty.campaigns.repository import PostgresCampaignRepository
 from loyalty.campaigns.service import CampaignService
 from loyalty.clients.notifications import NotificationsClient
+from loyalty.clients.order_history import OrderHistoryClient
 from loyalty.clients.payout_gateway import PayoutGatewayClient
 from loyalty.config.app import load_app, load_workers
 from loyalty.config.consumers import effective, load_consumers
@@ -52,11 +53,14 @@ async def run() -> None:
     notifications = NotificationsClient(
         clients.notifications.base_url, service_token, clients.notifications.timeout.total_seconds()
     )
+    orders = OrderHistoryClient(
+        clients.order_history.base_url, service_token, clients.order_history.timeout.total_seconds()
+    )
 
     discount_service = DiscountService(PostgresDiscountRepository(db), notifications, app_cfg.discounts.compensation)
     referral_service = ReferralService(PostgresRewardRepository(db), payouts)
     campaign_service = CampaignService(
-        PostgresCampaignRepository(db), discount_service, referral_service, app_cfg.promo.max_per_month
+        PostgresCampaignRepository(db), discount_service, referral_service, orders, app_cfg.promo.max_per_month
     )
     promo_service = PromoService(campaign_service)
 
@@ -122,6 +126,7 @@ async def run() -> None:
     finally:
         await payouts.aclose()
         await notifications.aclose()
+        await orders.aclose()
         await db.close()
 
 

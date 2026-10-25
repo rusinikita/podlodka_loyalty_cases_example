@@ -78,6 +78,7 @@ class Conditions(BaseModel):
     sku_ids: list[int] | None = None
     payment_methods: list[str] | None = None
     invited: bool | None = None
+    first_order: bool | None = None
     time_from: str | None = None
     time_to: str | None = None
     min_order_amount: int | None = None
