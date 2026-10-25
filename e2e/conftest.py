@@ -4,7 +4,8 @@ the Dockerfile in the repository root.
 
 The service gets a copy of config/ in which the clients point to the mock,
 the workers run every few seconds and the consumers read the topics from the
-beginning. The rest of the configuration is the same as in production.
+beginning with a few processing slots. The rest of the configuration is the
+same as in production.
 
 Files are copied into the containers, nothing is mounted from the host. With
 Colima set TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock."""
@@ -40,6 +41,8 @@ APP_IMAGE = "loyalty-e2e:local"
 DB_DSN = "postgres://loyalty:loyalty@postgres:5432/loyalty?sslmode=disable"
 SERVICE_TOKEN = "e2e-service-token"
 WORKER_SCHEDULE = "every 2s"
+# Topics have a single partition; production slot counts only load the host.
+CONSUMER_CONCURRENCY = 2
 
 APP_ENV = {
     "LOYALTY_CONFIG_DIR": "/etc/loyalty",
@@ -84,6 +87,8 @@ def prepare_config(mock_url: str) -> tuple[dict[str, bytes], list[str]]:
                 worker["schedule"] = WORKER_SCHEDULE
         if src.name == "consumers.yaml":
             doc["defaults"]["auto_offset_reset"] = "earliest"
+            for consumer in doc["consumers"]:
+                consumer.setdefault("processing", {})["concurrency"] = CONSUMER_CONCURRENCY
         files[src.name] = yaml.safe_dump(doc, sort_keys=False, allow_unicode=True).encode()
 
     consumers = yaml.safe_load((CONFIG_DIR / "consumers.yaml").read_text())["consumers"]
