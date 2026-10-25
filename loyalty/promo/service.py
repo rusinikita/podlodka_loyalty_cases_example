@@ -1,6 +1,7 @@
 """Applies promo codes entered by users: finds the campaign of the code and
 passes it to campaigns."""
 
+import unicodedata
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
@@ -77,8 +78,29 @@ class ApplyRequest:
     channel: Channel
 
 
+# Rendered as a blank inside a code but not a format character.
+_NO_BREAK_SPACES = frozenset("\u00a0\u2007\u202f")
+
+
 def normalize_code(raw: str) -> str:
-    return raw.strip().upper()
+    """Turns user input into the form promo codes are stored in.
+
+    Codes are often pasted from emails, messengers and notes, and the pasted
+    text carries invisible characters (zero-width spaces, soft hyphens,
+    non-breaking spaces) or full-width forms from some keyboards. NFKC folds
+    compatibility forms (full-width letters and digits, ligatures) into plain
+    ones. Invisible characters are dropped first, before NFKC turns no-break
+    spaces into ordinary ones.
+    """
+    s = "".join(ch for ch in raw if not _is_invisible(ch))
+    s = unicodedata.normalize("NFKC", s)
+    return s.strip().upper()
+
+
+def _is_invisible(ch: str) -> bool:
+    """Format characters (ZWSP, ZWNJ, ZWJ, word joiner, BOM, soft hyphen) and
+    no-break spaces."""
+    return ch in _NO_BREAK_SPACES or unicodedata.category(ch) == "Cf"
 
 
 class PromoService:
