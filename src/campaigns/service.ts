@@ -36,6 +36,11 @@ export interface ReferralRewards {
   create(reward: NewReward): Promise<void>;
 }
 
+/** Counts the user's paid and completed orders across all channels and payment methods. */
+export interface OrderHistory {
+  countOrders(userId: number, signal?: AbortSignal): Promise<number>;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export class CampaignService {
@@ -43,6 +48,7 @@ export class CampaignService {
     private readonly repo: CampaignRepository,
     private readonly discounts: DiscountGranter,
     private readonly referrals: ReferralRewards,
+    private readonly orders: OrderHistory,
     private readonly maxPromoPerMonth: number,
     private readonly log: Logger,
     private readonly now: () => Date = () => new Date(),
@@ -58,7 +64,7 @@ export class CampaignService {
     const matched: Campaign[] = [];
     for (const c of active) {
       try {
-        await this.checkGrant(c, ev);
+        await this.checkGrant(c, ev, signal);
       } catch (err) {
         if (err instanceof IneligibleError) {
           this.log.debug({ campaign: c.slug, user_id: ev.userId, reason: err.reason }, 'campaign skipped');
@@ -141,7 +147,7 @@ export class CampaignService {
   }
 
   /** Throws IneligibleError if a grant condition of c does not match the event. */
-  private async checkGrant(c: Campaign, ev: CampaignEvent): Promise<void> {
+  private async checkGrant(c: Campaign, ev: CampaignEvent, signal?: AbortSignal): Promise<void> {
     const cond = c.conditions;
 
     if (cond.countries?.length && !cond.countries.includes(ev.country)) {
@@ -162,6 +168,9 @@ export class CampaignService {
     if (cond.invited && !ev.invitedBy) {
       throw new IneligibleError('not_invited');
     }
+    if (cond.first_order && !(await this.isFirstOrder(ev.userId, signal))) {
+      throw new IneligibleError('not_first_order');
+    }
 
     if (cond.per_user_limit) {
       const n = await this.discounts.countByUser(c.id, ev.userId);
@@ -175,6 +184,20 @@ export class CampaignService {
         throw new IneligibleError('max_activations', 'activations_exhausted');
       }
     }
+  }
+
+  /**
+   * Whether the payment is for the user's first order: the order history,
+   * which already includes the paid order, has exactly one.
+   */
+  private async isFirstOrder(userId: number, signal?: AbortSignal): Promise<boolean> {
+    let n: number;
+    try {
+      n = await this.orders.countOrders(userId, signal);
+    } catch (err) {
+      throw new Error(`count user orders: ${(err as Error).message}`, { cause: err });
+    }
+    return n === 1;
   }
 
   private async grant(c: Campaign, ev: CampaignEvent, signal?: AbortSignal): Promise<void> {

@@ -47,6 +47,7 @@ export interface Conditions {
   sku_ids?: number[];
   payment_methods?: string[];
   invited?: boolean;
+  first_order?: boolean;
   time_from?: string;
   time_to?: string;
   min_order_amount?: number;
