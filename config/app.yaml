@@ -22,3 +22,6 @@ clients:
   notifications:
     base_url: http://notifications.crm.svc.cluster.local
     timeout: 1s
+  antifraud:
+    base_url: http://antifraud.antifraud.svc.cluster.local
+    timeout: 5s

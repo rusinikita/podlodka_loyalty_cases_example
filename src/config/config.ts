@@ -9,7 +9,7 @@ export interface AppConfig {
   database: { dsn: string; poolSize: number };
   promo: { maxPerMonth: number };
   discounts: { compensation: CompensationConfig };
-  clients: { payoutGateway: ClientConfig; notifications: ClientConfig };
+  clients: { payoutGateway: ClientConfig; notifications: ClientConfig; antifraud: ClientConfig };
 }
 
 export interface CompensationConfig {
@@ -33,7 +33,7 @@ interface RawApp {
   database: { dsn: string; pool_size: number };
   promo: { max_per_month: number };
   discounts: { compensation: { max_percent: number; ttl_days: number; role: string } };
-  clients: { payout_gateway: RawClient; notifications: RawClient };
+  clients: { payout_gateway: RawClient; notifications: RawClient; antifraud: RawClient };
 }
 
 /** Reads app.yaml. ${VAR} references are replaced with environment variables. */
@@ -53,6 +53,7 @@ export function loadApp(path: string): AppConfig {
     clients: {
       payoutGateway: client(raw.clients.payout_gateway),
       notifications: client(raw.clients.notifications),
+      antifraud: client(raw.clients.antifraud),
     },
   };
 }
