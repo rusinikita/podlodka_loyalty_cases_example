@@ -78,6 +78,20 @@ final class RewardRepository
         );
     }
 
+    /**
+     * Moves the reward from one status to another; a reward that is no longer
+     * in $from is left as is.
+     */
+    public function setStatus(int $id, RewardStatus $from, RewardStatus $to): void
+    {
+        DB::update('
+            UPDATE referral_rewards
+            SET status = ?, status_changed_at = now()
+            WHERE id = ? AND status = ?',
+            [$to->value, $id, $from->value],
+        );
+    }
+
     private static function hydrate(stdClass $row): Reward
     {
         return new Reward(
