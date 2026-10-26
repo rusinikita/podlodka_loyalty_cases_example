@@ -67,6 +67,7 @@ type Conditions struct {
 	SKUIDs         []int64  `json:"sku_ids,omitempty"`
 	PaymentMethods []string `json:"payment_methods,omitempty"`
 	Invited        bool     `json:"invited,omitempty"`
+	FirstOrder     bool     `json:"first_order,omitempty"`
 	TimeFrom       string   `json:"time_from,omitempty"`
 	TimeTo         string   `json:"time_to,omitempty"`
 	MinOrderAmount int      `json:"min_order_amount,omitempty"`
