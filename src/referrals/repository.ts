@@ -70,6 +70,15 @@ export class PostgresRewardRepository implements RewardRepository {
       [id, RewardStatus.Paid, payoutId, RewardStatus.Pending],
     );
   }
+
+  async setStatus(id: number, from: RewardStatus, to: RewardStatus): Promise<void> {
+    await this.db.query(
+      `UPDATE referral_rewards
+       SET status = $2, status_changed_at = now()
+       WHERE id = $1 AND status = $3`,
+      [id, to, from],
+    );
+  }
 }
 
 function toReward(row: RewardRow): Reward {

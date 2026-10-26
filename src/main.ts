@@ -8,6 +8,7 @@ import { pino } from 'pino';
 import { adminRouter } from './admin/router.js';
 import { PostgresCampaignRepository } from './campaigns/repository.js';
 import { CampaignService } from './campaigns/service.js';
+import { AntifraudClient } from './clients/antifraud.js';
 import { NotificationsClient } from './clients/notifications.js';
 import { PayoutGatewayClient } from './clients/payout-gateway.js';
 import { loadApp, loadWorkers, workerInterval } from './config/config.js';
@@ -38,6 +39,7 @@ async function main(): Promise<void> {
   const serviceToken = process.env.LOYALTY_SERVICE_TOKEN ?? '';
   const payouts = new PayoutGatewayClient(app.clients.payoutGateway, serviceToken);
   const notifications = new NotificationsClient(app.clients.notifications, serviceToken);
+  const antifraud = new AntifraudClient(app.clients.antifraud, serviceToken);
 
   const discountService = new DiscountService(
     new PostgresDiscountRepository(db),
@@ -45,7 +47,7 @@ async function main(): Promise<void> {
     app.discounts.compensation,
     log,
   );
-  const referralService = new ReferralService(new PostgresRewardRepository(db), payouts, log);
+  const referralService = new ReferralService(new PostgresRewardRepository(db), payouts, antifraud, log);
   const campaignService = new CampaignService(
     new PostgresCampaignRepository(db),
     discountService,
@@ -87,6 +89,7 @@ async function main(): Promise<void> {
 
   const jobs: Record<string, (batchSize: number, signal: AbortSignal) => Promise<void>> = {
     'reward-payouts': (batchSize, signal) => referralService.payPending(batchSize, signal),
+    'reward-antifraud-check': (batchSize, signal) => referralService.checkAntifraud(batchSize, signal),
   };
   const workerJobs: Array<{ name: string; intervalMs: number; runOnStart: boolean; job: Job }> = [];
   for (const w of workersCfg) {
