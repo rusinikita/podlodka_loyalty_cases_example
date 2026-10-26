@@ -6,6 +6,8 @@ class RewardStatus(IntEnum):
 
     PENDING = auto()
     PAID = auto()
+    WAITING_ANTIFRAUD_RESULT = auto()
+    REJECTED = auto()
 
 
 def status_name(value: int) -> str:

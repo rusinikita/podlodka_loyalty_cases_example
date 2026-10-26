@@ -71,6 +71,19 @@ class PostgresRewardRepository:
             RewardStatus.PENDING,
         )
 
+    async def set_status(self, reward_id: int, from_: RewardStatus, to: RewardStatus) -> None:
+        """Moves the reward from one status to another; a reward that is no
+        longer in from_ is left as is."""
+        await self._db.execute(
+            """
+            UPDATE referral_rewards
+            SET status = $2, status_changed_at = now()
+            WHERE id = $1 AND status = $3""",
+            reward_id,
+            to,
+            from_,
+        )
+
 
 def _reward(row: asyncpg.Record) -> Reward:
     return Reward(

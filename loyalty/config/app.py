@@ -40,6 +40,7 @@ class ClientConfig(BaseModel):
 class ClientsConfig(BaseModel):
     payout_gateway: ClientConfig
     notifications: ClientConfig
+    antifraud: ClientConfig
 
 
 class AppConfig(BaseModel):

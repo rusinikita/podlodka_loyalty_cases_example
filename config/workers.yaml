@@ -3,3 +3,8 @@ workers:
     schedule: every 5m
     run_on_start: true
     batch_size: 500
+
+  - name: reward-antifraud-check
+    schedule: every 6h
+    run_on_start: false
+    batch_size: 500
