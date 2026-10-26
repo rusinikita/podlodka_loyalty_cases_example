@@ -45,6 +45,7 @@ type Compensation struct {
 type Clients struct {
 	PayoutGateway Client `yaml:"payout_gateway"`
 	Notifications Client `yaml:"notifications"`
+	Antifraud     Client `yaml:"antifraud"`
 }
 
 type Client struct {

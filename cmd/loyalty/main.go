@@ -21,6 +21,7 @@ import (
 
 	"git.shnyr.tech/loyalty/loyalty/internal/admin"
 	"git.shnyr.tech/loyalty/loyalty/internal/campaigns"
+	"git.shnyr.tech/loyalty/loyalty/internal/clients/antifraud"
 	"git.shnyr.tech/loyalty/loyalty/internal/clients/notifications"
 	"git.shnyr.tech/loyalty/loyalty/internal/clients/payoutgateway"
 	"git.shnyr.tech/loyalty/loyalty/internal/config"
@@ -72,9 +73,10 @@ func run(log *slog.Logger) error {
 	serviceToken := os.Getenv("LOYALTY_SERVICE_TOKEN")
 	payouts := payoutgateway.New(app.Clients.PayoutGateway.BaseURL, serviceToken, app.Clients.PayoutGateway.Timeout)
 	notify := notifications.New(app.Clients.Notifications.BaseURL, serviceToken, app.Clients.Notifications.Timeout)
+	fraud := antifraud.New(app.Clients.Antifraud.BaseURL, serviceToken, app.Clients.Antifraud.Timeout)
 
 	discountSvc := discounts.NewService(discounts.NewPostgresRepository(db), notify, app.Discounts.Compensation, log)
-	referralSvc := referrals.NewService(referrals.NewPostgresRepository(db), payouts, log)
+	referralSvc := referrals.NewService(referrals.NewPostgresRepository(db), payouts, fraud, log)
 	campaignSvc := campaigns.NewService(campaigns.NewPostgresRepository(db), discountSvc, referralSvc, app.Promo.MaxPerMonth, log)
 	promoSvc := promo.NewService(campaignSvc, log)
 
@@ -136,7 +138,8 @@ func run(log *slog.Logger) error {
 	}
 
 	jobs := map[string]func(ctx context.Context, batchSize int) error{
-		"reward-payouts": referralSvc.PayPending,
+		"reward-payouts":         referralSvc.PayPending,
+		"reward-antifraud-check": referralSvc.CheckAntifraud,
 	}
 	for _, w := range workersCfg.Workers {
 		job, ok := jobs[w.Name]

@@ -73,6 +73,15 @@ func (r *PostgresRepository) MarkPaid(ctx context.Context, id int64, payoutID st
 	return err
 }
 
+func (r *PostgresRepository) SetStatus(ctx context.Context, id int64, from, to RewardStatus) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE referral_rewards
+		SET status = $2, status_changed_at = now()
+		WHERE id = $1 AND status = $3`,
+		id, to, from)
+	return err
+}
+
 func collectRewards(rows pgx.Rows) ([]Reward, error) {
 	defer rows.Close()
 	var out []Reward

@@ -9,6 +9,8 @@ type RewardStatus int16
 const (
 	RewardPending RewardStatus = iota + 1
 	RewardPaid
+	RewardWaitingAntifraudResult
+	RewardRejected
 )
 
 func (s RewardStatus) String() string {
@@ -17,6 +19,10 @@ func (s RewardStatus) String() string {
 		return "pending"
 	case RewardPaid:
 		return "paid"
+	case RewardWaitingAntifraudResult:
+		return "waiting_antifraud_result"
+	case RewardRejected:
+		return "rejected"
 	default:
 		return fmt.Sprintf("RewardStatus(%d)", int16(s))
 	}
