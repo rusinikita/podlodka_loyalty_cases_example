@@ -47,8 +47,21 @@ export interface ApplyRequest {
   channel: Channel;
 }
 
-function normalizeCode(raw: string): string {
-  return raw.trim().toUpperCase();
+// Format characters (ZWSP, ZWNJ, ZWJ, word joiner, BOM, soft hyphen) and
+// no-break spaces: not rendered or rendered as a blank inside a code.
+const INVISIBLE = /[\p{Cf}\u00A0\u2007\u202F]/gu;
+
+/**
+ * Turns user input into the form promo codes are stored in. Codes are often
+ * pasted from emails, messengers and notes, and the pasted text carries
+ * invisible characters (zero-width spaces, soft hyphens, non-breaking spaces)
+ * or full-width forms from some keyboards. NFKC folds compatibility forms
+ * (full-width letters and digits, ligatures) into plain ones. Invisible
+ * characters are dropped first, before NFKC turns no-break spaces into
+ * ordinary ones.
+ */
+export function normalizeCode(raw: string): string {
+  return raw.replace(INVISIBLE, '').normalize('NFKC').trim().toUpperCase();
 }
 
 export class PromoService {
