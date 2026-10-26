@@ -22,3 +22,6 @@ clients:
   notifications:
     base_url: http://notifications.crm.svc.cluster.local
     timeout: 1s
+  order_history:
+    base_url: http://order-history.orders.svc.cluster.local
+    timeout: 1s

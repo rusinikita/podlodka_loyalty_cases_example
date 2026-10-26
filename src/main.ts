@@ -9,6 +9,7 @@ import { adminRouter } from './admin/router.js';
 import { PostgresCampaignRepository } from './campaigns/repository.js';
 import { CampaignService } from './campaigns/service.js';
 import { NotificationsClient } from './clients/notifications.js';
+import { OrderHistoryClient } from './clients/order-history.js';
 import { PayoutGatewayClient } from './clients/payout-gateway.js';
 import { loadApp, loadWorkers, workerInterval } from './config/config.js';
 import { brokers, effective, loadConsumers } from './config/consumers.js';
@@ -38,6 +39,7 @@ async function main(): Promise<void> {
   const serviceToken = process.env.LOYALTY_SERVICE_TOKEN ?? '';
   const payouts = new PayoutGatewayClient(app.clients.payoutGateway, serviceToken);
   const notifications = new NotificationsClient(app.clients.notifications, serviceToken);
+  const orders = new OrderHistoryClient(app.clients.orderHistory, serviceToken);
 
   const discountService = new DiscountService(
     new PostgresDiscountRepository(db),
@@ -50,6 +52,7 @@ async function main(): Promise<void> {
     new PostgresCampaignRepository(db),
     discountService,
     referralService,
+    orders,
     app.promo.maxPerMonth,
     log,
   );
